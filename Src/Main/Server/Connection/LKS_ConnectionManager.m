@@ -17,6 +17,9 @@
 #import "LKS_TraceManager.h"
 #import "LKS_MultiplatformAdapter.h"
 #import "ECOChannelManager.h"
+#if TARGET_OS_IPHONE
+#import "LKS_HTTPHandler.h"
+#endif
 
 #if LOOKIN_SERVER_WIRELESS
 @import CocoaAsyncSocket;
@@ -35,6 +38,10 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 @property(nonatomic, strong) ECOChannelDeviceInfo *wirelessDevice;
 
 @property BOOL hasStartWirelessConnnection;
+
+#if TARGET_OS_IPHONE
+@property(nonatomic, strong) LKS_HTTPHandler *httpHandler;
+#endif
 
 @end
 
@@ -91,6 +98,11 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
         
         self.requestHandler = [LKS_RequestHandler new];
         self.wirelessRequestHandler = LKS_RequestHandler.wireless;
+#if TARGET_OS_IPHONE
+        // 启动 HTTP Server，供 lookin-mcp 直连（127.0.0.1:47190）
+        self.httpHandler = [LKS_HTTPHandler new];
+        [self.httpHandler startHTTPServer];
+#endif
     }
     return self;
 }

@@ -215,25 +215,46 @@ static UIViewController *LKS_ForegroundTopViewController(void) {
 		};
 		// 请求授权状态认证回调
 		self.wirelessChannel.requestAuthBlock = ^(ECOChannelDeviceInfo *device, ECOAuthorizeResponseType authState) {
-			NSLog(@"🚀 Lookin requestAuthBlock device:%@ authState:%ld", device, authState);
-			NSString *title = @"Lookin 连接请求";
-			NSString *message = [NSString stringWithFormat:@"%@ 的Lookin想要连接你的设备，如果你想启用调试功能，请选择允许", device.hostName ?: device.ipAddress];
+			NSLog(@"🚀 Lookin requestAuthBlock device:%@ authState:%ld pairCode:%@", device, authState, device.pairCode);
+			if ([weakSelf.wirelessChannel isPairedDevice:device]) {
+				// 本机记录里已配对（比如 Mac 端重装后丢失了它的记录）：静默放行并让 Mac 重新记住配对
+				[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_AllowAlways showAuthAlert:NO pairCode:nil];
+				weakSelf.wirelessDevice = device;
+				return;
+			}
+			NSString *hostName = device.hostName ?: device.ipAddress;
+			BOOL isPairingRequest = device.pairCode.length > 0;
+			NSString *title;
+			NSString *message;
+			if (isPairingRequest) {
+				// 蓝牙式配对：6 位码分成 3+3 展示，方便与 Mac 屏幕上的码肉眼核对
+				NSString *code = device.pairCode;
+				NSString *displayCode = code.length >= 6 ? [NSString stringWithFormat:@"%@ %@", [code substringToIndex:3], [code substringFromIndex:3]] : code;
+				title = @"Lookin 配对请求";
+				message = [NSString stringWithFormat:@"「%@」请求与本设备配对。\n\n请核对 Mac 上 Lookin 显示的配对码：\n\n    %@\n\n配对一次后，之后将自动连接。", hostName, displayCode];
+			} else {
+				title = @"Lookin 连接请求";
+				message = [NSString stringWithFormat:@"%@ 的 Lookin 想要连接你的设备，如果你想启用调试功能，请选择允许", hostName];
+			}
 			UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
 			UIAlertAction *denyAction = [UIAlertAction actionWithTitle:@"拒绝" style:UIAlertActionStyleCancel handler:^(UIAlertAction * _Nonnull action) {
-				[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_Deny showAuthAlert:NO];
+				[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_Deny showAuthAlert:NO pairCode:nil];
 			}];
-			UIAlertAction *allowOnceAction = [UIAlertAction actionWithTitle:@"允许一次" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-				[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_AllowOnce showAuthAlert:NO];
-				weakSelf.wirelessDevice = device;
-			}];
-			UIAlertAction *allowAlwaysAction = [UIAlertAction actionWithTitle:@"始终允许" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-				[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_AllowAlways showAuthAlert:NO];
+			UIAlertAction *confirmAction = [UIAlertAction actionWithTitle:isPairingRequest ? @"配对" : @"始终允许" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+				[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_AllowAlways showAuthAlert:NO pairCode:nil];
+				[weakSelf.wirelessChannel savePairedDevice:device];
 				weakSelf.wirelessDevice = device;
 			}];
 			[alertController addAction:denyAction];
-			[alertController addAction:allowOnceAction];
-			[alertController addAction:allowAlwaysAction];
-			
+			[alertController addAction:confirmAction];
+			if (!isPairingRequest) {
+				// 旧版 Mac 客户端（无配对码）降级：保留「允许一次」
+				[alertController addAction:[UIAlertAction actionWithTitle:@"允许一次" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+					[weakSelf.wirelessChannel sendAuthorizationMessageToDevice:device state:ECOAuthorizeResponseType_AllowOnce showAuthAlert:NO pairCode:nil];
+					weakSelf.wirelessDevice = device;
+				}]];
+			}
+
 			dispatch_async(dispatch_get_main_queue(), ^{
 				UIViewController *topVC = LKS_ForegroundTopViewController();
 				[topVC presentViewController:alertController animated:YES completion:nil];

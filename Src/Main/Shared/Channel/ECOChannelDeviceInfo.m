@@ -19,7 +19,25 @@
 
 static NSInteger const ECOINET_ADDRSTRLEN = 16;
 static NSInteger const ECOINET6_ADDRSTRLEN = 46;
-static NSString *_macUUIDString = nil;
+
+/// 配对身份：首次使用时生成并持久化到 NSUserDefaults。
+/// 不用 identifierForVendor（会在 App 冷启动间轮换），也不用每次启动随机的 UUID（无法跨启动记住对端）。
+/// 重装 App（清数据）会得到新身份，需要重新配对一次，与蓝牙配对的直觉一致。
+static NSString *ECOPairingIdentityString(void) {
+    static NSString *identity = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        NSString *key = @"LookinPairingIdentityKey";
+        NSString *saved = [[NSUserDefaults standardUserDefaults] stringForKey:key];
+        if ([saved length] == 36) {
+            identity = saved;
+        } else {
+            identity = [[NSUUID UUID] UUIDString];
+            [[NSUserDefaults standardUserDefaults] setObject:identity forKey:key];
+        }
+    });
+    return identity;
+}
 
 @interface ECOChannelDeviceInfo()
 
@@ -51,6 +69,7 @@ static NSString *_macUUIDString = nil;
             self.authorizedType = [deviceDict[@"authType"] integerValue];
             self.showAuthAlert = [deviceDict[@"showAuth"] boolValue];
             self.hostName = deviceDict[@"hostName"];
+            self.pairCode = deviceDict[@"pairCode"];
 
             ECOChannelAppInfo *appInfo = [[ECOChannelAppInfo alloc] initWithDictionary:deviceDict[@"appInfo"]];
             self.appInfo = appInfo;
@@ -70,6 +89,7 @@ static NSString *_macUUIDString = nil;
     deviceInfo.deviceType = self.deviceType;
     deviceInfo.authorizedType = self.authorizedType;
     deviceInfo.showAuthAlert = self.showAuthAlert;
+    deviceInfo.pairCode = self.pairCode;
     deviceInfo.appInfo = self.appInfo;
 
     return deviceInfo;
@@ -92,11 +112,8 @@ static NSString *_macUUIDString = nil;
     return self;
 }
 - (void)setupMacDeviceInfo {
-    //uuid
-    if (!_macUUIDString) {
-        _macUUIDString = [[NSUUID UUID] UUIDString];
-    }
-    self.uuid = _macUUIDString;
+    //uuid：持久化的配对身份，跨启动稳定
+    self.uuid = ECOPairingIdentityString();
     //设备
     self.deviceName = @"MacApp";
     self.deviceType = ECODeviceType_MacApp;
@@ -118,9 +135,8 @@ static NSString *_macUUIDString = nil;
 		self.deviceType = ECODeviceType_Device;
 	}
 #endif
-    //uuid
-    //        self.uuid = [[NSUUID UUID] UUIDString];
-    self.uuid = [[device identifierForVendor] UUIDString];
+    //uuid：持久化的配对身份，跨启动稳定（替代会轮换的 identifierForVendor）
+    self.uuid = ECOPairingIdentityString();
 
     ECOChannelAppInfo *appInfo = [ECOChannelAppInfo new];
     self.appInfo = appInfo;
@@ -179,6 +195,7 @@ static NSString *_macUUIDString = nil;
     [json setValue:@(self.authorizedType) forKey:@"authType"];
     [json setValue:@(self.showAuthAlert) forKey:@"showAuth"];
     [json setValue:self.hostName ?: @"" forKey:@"hostName"];
+    [json setValue:self.pairCode ?: @"" forKey:@"pairCode"];
     [json setValue:[self.appInfo toDictionary] forKey:@"appInfo"];
 
     return [json copy];

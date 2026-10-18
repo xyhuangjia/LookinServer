@@ -22,12 +22,15 @@
 //static uint16_t const  ECOSocketAcceptPortNumber = 23234;
 static CGFloat const ECOSocketRetryListenDelay   = 1.f;
 static NSInteger const ECOSocketHeadOffsetValue  = 10;
-static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
+//配对记录：iOS 侧存已配对 Mac 的 uuid，macOS 侧存已配对手机 App 的 uuid（替代旧白名单，键为稳定的配对身份）
+static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
 
 @interface ECOSocketChannel()
 <GCDAsyncSocketDelegate> {
     NSRecursiveLock *_socketLock;
 }
+//类扩展里重声明为 readwrite，让编译器合成 _pairedDevices ivar（getter 手写做懒加载）
+@property (nonatomic, strong) NSMutableArray<NSString *> *pairedDevices;
 @property (nonatomic, strong) NSMutableArray *sockets;
 @property (nonatomic, strong) GCDAsyncSocket *mSocket;
 @property (nonatomic, strong) ECONetServicePublisher *publisher;
@@ -236,7 +239,8 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
 //发送授权数据
 - (void)sendAuthorizationMessageToDevice:(ECOChannelDeviceInfo *)device
                                     state:(ECOAuthorizeResponseType)responseType
-                           showAuthAlert:(BOOL)showAuthAlert {
+                           showAuthAlert:(BOOL)showAuthAlert
+                                 pairCode:(NSString *)pairCode {
     //修改数据
     ECOChannelDeviceInfo *authDevice = device;
     device.showAuthAlert = showAuthAlert;
@@ -247,6 +251,7 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
     }
 #endif
     authDevice.authorizedType = responseType;
+    authDevice.pairCode = pairCode;
     NSError *error = nil;
     NSData *packet = [NSJSONSerialization dataWithJSONObject:[authDevice toJSONObject] options:0 error:&error];
     if (error) {
@@ -277,13 +282,9 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
         if ([self.delegate respondsToSelector:@selector(channel:device:didChangedAuthState:)]) {
             [self.delegate channel:self device:device didChangedAuthState:NO];
         }
-        //修改授权白名单
+        //取消配对：清除本机记录（对端收到 Deny 帧后也会清除它的记录）
         if (device.uuid.length > 0) {
-            NSString *uniId = [NSString stringWithFormat:@"%@_%@",device.uuid, device.appInfo.appId];
-            if ([self.whitelistDevices containsObject:uniId]) {
-                [self.whitelistDevices removeObject:uniId];
-                [self saveWhiteListDevices];
-            }
+            [self removePairedDeviceUUID:device.uuid];
         }
     }
 #else
@@ -388,11 +389,10 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
         ECOChannelDeviceInfo *deviceInfo = [[ECOChannelDeviceInfo alloc] initWithData:data];
         sock.userData = deviceInfo;
 #if TARGET_OS_OSX
-        NSString *uniId = [NSString stringWithFormat:@"%@_%@",deviceInfo.uuid, deviceInfo.appInfo.appId];
-        if ([self.whitelistDevices containsObject:uniId]) {
-            //设置为已授权
+        if ([self isPairedDeviceUUID:deviceInfo.uuid]) {
+            //已配对设备：静默自动授权，双方零交互
             deviceInfo.authorizedType = ECOAuthorizeResponseType_AllowAlways;
-            [self sendAuthorizationMessageToDevice:deviceInfo state:ECOAuthorizeResponseType_AllowAlways showAuthAlert:NO];
+            [self sendAuthorizationMessageToDevice:deviceInfo state:ECOAuthorizeResponseType_AllowAlways showAuthAlert:NO pairCode:nil];
         }
 #endif
         deviceInfo.isConnected = YES;
@@ -419,13 +419,18 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
         BOOL isAlwaysAllow = tempDevice.authorizedType == ECOAuthorizeResponseType_AllowAlways;
 #if TARGET_OS_IPHONE
         deviceInfo.hostName = tempDevice.hostName;
+        deviceInfo.pairCode = tempDevice.pairCode;
         if (tempDevice.showAuthAlert) {
-            //弹窗提示用户
+            //弹窗提示用户（可能携带配对码）
             if ([self.delegate respondsToSelector:@selector(channel:device:willRequestAuthState:)]) {
                 [self.delegate channel:self device:deviceInfo willRequestAuthState:tempDevice.authorizedType];
             }
         }else{
             deviceInfo.authorizedType = tempDevice.authorizedType;
+            if (tempDevice.authorizedType == ECOAuthorizeResponseType_Deny && deviceInfo.uuid.length > 0) {
+                //Mac 端「取消配对」发来的 Deny：清除本机（手机侧）的配对记录
+                [self removePairedDeviceUUID:deviceInfo.uuid];
+            }
             //连接到新设备
             if ([self.delegate respondsToSelector:@selector(channel:device:didChangedAuthState:)]) {
                 [self.delegate channel:self device:deviceInfo didChangedAuthState:tempDevice.authorizedType];
@@ -437,15 +442,12 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
         deviceInfo.authorizedType = tempDevice.authorizedType;
         //重置标记位
         deviceInfo.showAuthAlert = NO;
-        //始终允许，加入白名单
+        //始终允许 = 配对成功，记录该手机 App 的身份
         if (deviceInfo.uuid.length > 0) {
-            NSString *uniId = [NSString stringWithFormat:@"%@_%@",deviceInfo.uuid, deviceInfo.appInfo.appId];
-            if (isAlwaysAllow && ![self.whitelistDevices containsObject:uniId]) {
-                [self.whitelistDevices addObject:uniId];
-                [self saveWhiteListDevices];
-            }else if (!isAlwaysAllow && [self.whitelistDevices containsObject:uniId]){
-                [self.whitelistDevices removeObject:uniId];
-                [self saveWhiteListDevices];
+            if (isAlwaysAllow) {
+                [self addPairedDeviceUUID:deviceInfo.uuid];
+            }else{
+                [self removePairedDeviceUUID:deviceInfo.uuid];
             }
         }
         //回调
@@ -495,10 +497,34 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
 - (void)p_unlock {
     [_socketLock unlock];
 }
-- (void)saveWhiteListDevices {
-    NSArray *list = [self.whitelistDevices copy];
-    [[NSUserDefaults standardUserDefaults] setObject:list forKey:ECHOAuthorizedDevicesKey];
+- (void)p_savePairedDevices {
+    NSArray *list = [self.pairedDevices copy];
+    [[NSUserDefaults standardUserDefaults] setObject:list forKey:LookinPairedPeersKey];
     [[NSUserDefaults standardUserDefaults] synchronize];
+}
+- (BOOL)isPairedDeviceUUID:(NSString *)uuid {
+    if (![uuid length]) {
+        return NO;
+    }
+    return [self.pairedDevices containsObject:uuid];
+}
+- (void)addPairedDeviceUUID:(NSString *)uuid {
+    if (![uuid length]) {
+        return;
+    }
+    if (![self.pairedDevices containsObject:uuid]) {
+        [self.pairedDevices addObject:uuid];
+        [self p_savePairedDevices];
+    }
+}
+- (void)removePairedDeviceUUID:(NSString *)uuid {
+    if (![uuid length]) {
+        return;
+    }
+    if ([self.pairedDevices containsObject:uuid]) {
+        [self.pairedDevices removeObject:uuid];
+        [self p_savePairedDevices];
+    }
 }
 #pragma mark - getters
 - (NSMutableArray *)sockets {
@@ -538,12 +564,12 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
 }
 #endif
 
-- (NSMutableArray *)whitelistDevices {
-    if (!_whitelistDevices) {
-        NSArray *list = [[NSUserDefaults standardUserDefaults] objectForKey:ECHOAuthorizedDevicesKey];
-        _whitelistDevices = [NSMutableArray arrayWithArray:list ?: @[]];
+- (NSMutableArray<NSString *> *)pairedDevices {
+    if (!_pairedDevices) {
+        NSArray *list = [[NSUserDefaults standardUserDefaults] objectForKey:LookinPairedPeersKey];
+        _pairedDevices = [NSMutableArray arrayWithArray:list ?: @[]];
     }
-    return _whitelistDevices;
+    return _pairedDevices;
 }
 @end
 

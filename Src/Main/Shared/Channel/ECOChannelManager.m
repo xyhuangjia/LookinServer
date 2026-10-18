@@ -63,12 +63,13 @@
 //发送授权数据
 - (void)sendAuthorizationMessageToDevice:(ECOChannelDeviceInfo *)device
                                     state:(ECOAuthorizeResponseType)responseType
-                           showAuthAlert:(BOOL)showAuthAlert {
+                           showAuthAlert:(BOOL)showAuthAlert
+                                 pairCode:(NSString *)pairCode {
     if (!device ||
         ![device isKindOfClass:[ECOChannelDeviceInfo class]]) {
         return;
     }
-    [self.socketChannel sendAuthorizationMessageToDevice:device state:responseType showAuthAlert:showAuthAlert];
+    [self.socketChannel sendAuthorizationMessageToDevice:device state:responseType showAuthAlert:showAuthAlert pairCode:pairCode];
 }
 #pragma mark - 连接状态
 // 是否已连接到Mac客户端
@@ -109,8 +110,20 @@
     !self.requestAuthBlock ?: self.requestAuthBlock(device, authorizedType);
 }
 
-- (NSMutableArray *)whitelistDevices {
-	return self.socketChannel.whitelistDevices;
+- (NSMutableArray *)pairedDevices {
+    return self.socketChannel.pairedDevices;
+}
+
+- (BOOL)isPairedDevice:(ECOChannelDeviceInfo *)device {
+    return [self.socketChannel isPairedDeviceUUID:device.uuid];
+}
+
+- (void)savePairedDevice:(ECOChannelDeviceInfo *)device {
+    [self.socketChannel addPairedDeviceUUID:device.uuid];
+}
+
+- (void)removePairedDevice:(ECOChannelDeviceInfo *)device {
+    [self.socketChannel removePairedDeviceUUID:device.uuid];
 }
 
 @end

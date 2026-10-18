@@ -35,8 +35,15 @@ typedef void(^ECOChannelRequestAuthStateBlock)(ECOChannelDeviceInfo *device, ECO
 /// 请求授权状态认证回调
 @property (nonatomic, copy) ECOChannelRequestAuthStateBlock requestAuthBlock;
 
-/// 设备白名单列表，记录始终允许的设备
-@property (nonatomic, strong, readonly) NSMutableArray *whitelistDevices;
+/// 已配对的对端身份列表（iOS 侧存已配对 Mac 的 uuid，macOS 侧存已配对手机 App 的 uuid）
+@property (nonatomic, strong, readonly) NSMutableArray<NSString *> *pairedDevices;
+
+/// 该设备（以其 uuid 标识）是否已与本机配对
+- (BOOL)isPairedDevice:(ECOChannelDeviceInfo *)device;
+/// 记录配对（如手机上用户点「配对」确认后调用）
+- (void)savePairedDevice:(ECOChannelDeviceInfo *)device;
+/// 取消配对（双端清除记录）
+- (void)removePairedDevice:(ECOChannelDeviceInfo *)device;
 
 /**
  发送数据包
@@ -51,10 +58,11 @@ typedef void(^ECOChannelRequestAuthStateBlock)(ECOChannelDeviceInfo *device, ECO
          extraInfo:(NSDictionary *)extraInfo
           toDevice:(ECOChannelDeviceInfo *)device;
 
-//发送授权数据
+//发送授权数据；pairCode 非空表示这是一次蓝牙式的配对请求（仅随首次配对发送）
 - (void)sendAuthorizationMessageToDevice:(ECOChannelDeviceInfo *)device
                                     state:(ECOAuthorizeResponseType)responseType
-                           showAuthAlert:(BOOL)showAuthAlert;
+                           showAuthAlert:(BOOL)showAuthAlert
+                                 pairCode:(NSString *)pairCode;
 
 /**
  是否已连接到Mac客户端

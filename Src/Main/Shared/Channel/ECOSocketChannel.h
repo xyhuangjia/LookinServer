@@ -37,8 +37,13 @@ static const int ECOHeadSubType_Data = 1;
 
 @interface ECOSocketChannel : ECOBaseChannel
 
-/// 设备白名单列表，记录始终允许的设备
-@property (nonatomic, strong) NSMutableArray *whitelistDevices;
+/// 已配对的对端身份列表（iOS 侧存已配对 Mac 的 uuid，macOS 侧存已配对手机 App 的 uuid），持久化在 NSUserDefaults
+@property (nonatomic, strong, readonly) NSMutableArray<NSString *> *pairedDevices;
+
+/// 该对端（以其 uuid 标识）是否已与本机配对
+- (BOOL)isPairedDeviceUUID:(NSString *)uuid;
+- (void)addPairedDeviceUUID:(NSString *)uuid;
+- (void)removePairedDeviceUUID:(NSString *)uuid;
 
 //连接到ip地址
 - (void)autoConnectToClientIPAddress:(NSString *)ipAddress;
@@ -52,9 +57,10 @@ static const int ECOHeadSubType_Data = 1;
          extraInfo:(NSDictionary *)extraInfo
           toDevice:(ECOChannelDeviceInfo *)device;
 
-//发送授权数据
+//发送授权数据；pairCode 非空表示这是一次蓝牙式的配对请求（仅随首次配对发送）
 - (void)sendAuthorizationMessageToDevice:(ECOChannelDeviceInfo *)device
                                     state:(ECOAuthorizeResponseType)responseType
-                           showAuthAlert:(BOOL)showAuthAlert;
+                           showAuthAlert:(BOOL)showAuthAlert
+                                 pairCode:(NSString *)pairCode;
 
 @end

@@ -36,6 +36,9 @@ typedef NS_ENUM(NSInteger, ECOAuthorizeResponseType) {
 @property (nonatomic, assign) BOOL isConnected;
 @property (nonatomic, strong, readonly) ECOChannelAppInfo *appInfo;
 
+/// 配对码。仅 Mac 发起首次配对时随 Authorization 帧携带（如 "482913"），旧版对端会忽略该字段
+@property (nonatomic, copy) NSString *pairCode;
+
 /**
  透传数据
  */

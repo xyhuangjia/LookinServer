@@ -1,4 +1,4 @@
-// swift-tools-version:5.3
+// swift-tools-version:5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -6,7 +6,8 @@ import PackageDescription
 let package = Package(
     name: "LookinServer",
     platforms: [
-        .iOS(.v9),.tvOS(.v9), .macOS(.v11)
+        // 与 podspec 对齐（iOS/tvOS 15.6、macOS 14.0）；SPM 平台版本只支持 major 粒度，故取 15/14
+        .iOS(.v15), .tvOS(.v15), .macOS(.v14)
     ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.

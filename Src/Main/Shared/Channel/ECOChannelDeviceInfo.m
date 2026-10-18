@@ -6,15 +6,12 @@
 //  Description
 //
 
-#if __has_include(<UIKit/UIKit.h>)
-
 #import "ECOChannelDeviceInfo.h"
 #include <ifaddrs.h>
 #include <arpa/inet.h>
 #include <net/if.h>
 #include <sys/utsname.h>
 
-@import UIKit;
 
 static NSInteger const ECOINET_ADDRSTRLEN = 16;
 static NSInteger const ECOINET6_ADDRSTRLEN = 46;
@@ -212,4 +209,3 @@ static NSString *_macUUIDString = nil;
 
 @end
 
-#endif /* __has_include(<UIKit/UIKit.h>) */

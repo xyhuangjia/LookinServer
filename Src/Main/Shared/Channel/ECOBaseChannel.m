@@ -6,8 +6,6 @@
 //  Description 
 //
 
-#if __has_include(<UIKit/UIKit.h>)
-
 #import "ECOBaseChannel.h"
 
 @implementation ECOBaseChannel
@@ -34,4 +32,3 @@
 }
 @end
 
-#endif /* __has_include(<UIKit/UIKit.h>) */

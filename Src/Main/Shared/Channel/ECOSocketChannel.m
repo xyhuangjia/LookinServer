@@ -6,8 +6,6 @@
 //  Description 
 //
 
-#if __has_include(<UIKit/UIKit.h>)
-
 #import "ECOSocketChannel.h"
 //#import <CocoaAsyncSocket/GCDAsyncSocket.h>
 #import <pthread.h>
@@ -549,4 +547,3 @@ static NSString *const ECHOAuthorizedDevicesKey = @"echoAuthorizedDevicesKey";
 }
 @end
 
-#endif /* __has_include(<UIKit/UIKit.h>) */

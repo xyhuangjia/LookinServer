@@ -6,11 +6,8 @@
 //  Description
 //
 
-#if __has_include(<UIKit/UIKit.h>)
-
 #import "ECOChannelAppInfo.h"
 
-@import UIKit;
 
 static NSString *_ecoUniqueAppId = nil;
 static NSString *_ecoUniqueAppName = nil;
@@ -88,4 +85,3 @@ static NSString *_ecoUniqueAppName = nil;
 
 @end
 
-#endif /* __has_include(<UIKit/UIKit.h>) */

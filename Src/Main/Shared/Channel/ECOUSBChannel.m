@@ -6,8 +6,6 @@
 //  Description 
 //
 
-#if __has_include(<UIKit/UIKit.h>)
-
 #import "ECOUSBChannel.h"
 #import "Lookin_PTChannel.h"
 #import "ECOChannelDeviceInfo.h"
@@ -326,4 +324,3 @@ static dispatch_data_t ECOUSBChannelDispatchDataWithPayload(id payload) {
 
 @end
 
-#endif /* __has_include(<UIKit/UIKit.h>) */

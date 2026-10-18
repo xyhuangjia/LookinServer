@@ -8,6 +8,7 @@
 
 #import "LKS_MultiplatformAdapter.h"
 #import <UIKit/UIKit.h>
+#import "LKS_WindowDiscovery.h"
 
 @implementation LKS_MultiplatformAdapter
 
@@ -63,8 +64,8 @@
 }
 
 + (NSArray<UIWindow *> *)allWindows {
-#if TARGET_OS_VISION
     NSMutableArray<UIWindow *> *windows = [NSMutableArray new];
+#if TARGET_OS_VISION
     for (UIScene *scene in
          UIApplication.sharedApplication.connectedScenes) {
         if (![scene isKindOfClass:UIWindowScene.class]) {
@@ -72,7 +73,7 @@
         }
         UIWindowScene *windowScene = (UIWindowScene *)scene;
         [windows addObjectsFromArray:windowScene.windows];
-        
+
         // 以UIModalPresentationFormSheet形式展示的页面由系统私有window承载，不出现在scene.windows，不过可以从scene.keyWindow中获取
         if (![windows containsObject:windowScene.keyWindow]) {
             if (![NSStringFromClass(windowScene.keyWindow.class) containsString:@"HUD"]) {
@@ -80,11 +81,18 @@
             }
         }
     }
+#else
+    [windows addObjectsFromArray:[UIApplication sharedApplication].windows];
+#endif
+
+    // 合并通过 LKS_WindowDiscovery 注册的自定义窗口（如远程键盘、自定义 inputView 所在的窗口）
+    for (UIWindow *registeredWindow in [LKS_WindowDiscovery sharedInstance].registeredWindows) {
+        if (![windows containsObject:registeredWindow]) {
+            [windows addObject:registeredWindow];
+        }
+    }
 
     return [windows copy];
-#else
-    return [[UIApplication sharedApplication].windows copy];
-#endif
 }
 
 @end

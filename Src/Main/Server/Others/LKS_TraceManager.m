@@ -74,7 +74,7 @@
         }
         [self _markIVarsInAllClassLevelsOfObject:obj.object];
     }];
-    
+
     [[LKS_MultiplatformAdapter allWindows] enumerateObjectsUsingBlock:^(__kindof UIWindow * _Nonnull window, NSUInteger idx, BOOL * _Nonnull stop) {
         [self _addTraceForLayersRootedByLayer:window.layer];
     }];

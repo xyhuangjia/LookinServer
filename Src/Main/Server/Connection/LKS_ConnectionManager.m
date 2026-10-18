@@ -16,7 +16,13 @@
 #import "LookinServerDefines.h"
 #import "LKS_TraceManager.h"
 #import "LKS_MultiplatformAdapter.h"
+#import "LookinConnectionAttachment.h"
+#import "LookinAttributeModification.h"
+#import "LookinCustomAttrModification.h"
+#import "LookinStaticAsyncUpdateTask.h"
+#if LOOKIN_SERVER_WIRELESS
 #import "ECOChannelManager.h"
+#endif
 #if TARGET_OS_IPHONE
 #import "LKS_HTTPHandler.h"
 #endif
@@ -24,6 +30,30 @@
 #if LOOKIN_SERVER_WIRELESS
 @import CocoaAsyncSocket;
 #endif
+
+/// 服务端可解码的消息顶层类型白名单。
+/// 顶层只允许请求信封（LookinConnectionAttachment）、各请求对象及 Foundation 基础类型；
+/// 嵌套对象由各模型自己的 <NSSecureCoding> 实现约束。
+/// 不使用 [NSObject class] 作为允许类，避免新运行时的 NSSecureCoding 警告（未来会变为错误）。
+static NSSet<Class> *LKS_AllowedTopLevelClasses(void) {
+    static NSSet<Class> *classes;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        classes = [NSSet setWithObjects:
+            [LookinConnectionAttachment class],
+            [LookinAttributeModification class],
+            [LookinCustomAttrModification class],
+            [LookinStaticAsyncUpdateTask class],
+            [LookinStaticAsyncUpdateTasksPackage class],
+            [NSDictionary class],
+            [NSArray class],
+            [NSString class],
+            [NSNumber class],
+            [NSData class],
+            nil];
+    });
+    return classes;
+}
 
 NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNotificationName";
 
@@ -34,8 +64,10 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 @property(nonatomic, strong) LKS_RequestHandler *requestHandler;
 @property(nonatomic, strong) LKS_RequestHandler *wirelessRequestHandler;
 
+#if LOOKIN_SERVER_WIRELESS
 @property(nonatomic, strong) ECOChannelManager *wirelessChannel;
 @property(nonatomic, strong) ECOChannelDeviceInfo *wirelessDevice;
+#endif
 
 @property BOOL hasStartWirelessConnnection;
 
@@ -124,7 +156,8 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 			NSNumber *type = extraInfo[@"type"];
 			NSNumber *tag = extraInfo[@"tag"];
 			id object = nil;
-			id unarchivedObject = [NSKeyedUnarchiver unarchiveObjectWithData:data];
+			NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];
+			id unarchivedObject = [unarchiver decodeObjectOfClasses:LKS_AllowedTopLevelClasses() forKey:NSKeyedArchiveRootObjectKey];
 			if ([unarchivedObject isKindOfClass:[LookinConnectionAttachment class]]) {
 				LookinConnectionAttachment *attachment = (LookinConnectionAttachment *)unarchivedObject;
 				object = attachment.data;
@@ -254,7 +287,7 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
             } else {
                 // 未知失败
             }
-            
+
             if (currentPort < toPort) {
                 // 尝试下一个端口
                 NSLog(@"LookinServer - 127.0.0.1:%d is unavailable(%@). Will try anothor address ...", currentPort, error);
@@ -264,7 +297,7 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
                 NSLog(@"LookinServer - 127.0.0.1:%d is unavailable(%@).", currentPort, error);
                 NSLog(@"LookinServer - Connect failed in the end.");
             }
-            
+
         } else {
             // 成功
             NSLog(@"LookinServer - Connected successfully on 127.0.0.1:%d", currentPort);
@@ -306,9 +339,11 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 - (void)_sendData:(NSObject *)data frameOfType:(uint32_t)frameOfType tag:(uint32_t)tag isWireless:(BOOL)isWireless {
 	NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:data];
     if (isWireless) {
+#if LOOKIN_SERVER_WIRELESS
         if (self.wirelessDevice.isConnected) {
             [self.wirelessChannel sendPacket:archivedData extraInfo:@{@"tag": @(tag), @"type": @(frameOfType)} toDevice:self.wirelessDevice];
         }
+#endif
     } else {
         if (self.peerChannel_) {
             dispatch_data_t payload = [archivedData createReferencingDispatchData];
@@ -337,7 +372,8 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 - (void)ioFrameChannel:(Lookin_PTChannel*)channel didReceiveFrameOfType:(uint32_t)type tag:(uint32_t)tag payload:(Lookin_PTData*)payload {
     id object = nil;
     if (payload) {
-        id unarchivedObject = [NSKeyedUnarchiver unarchiveObjectWithData:[NSData dataWithContentsOfDispatchData:payload.dispatchData]];
+        NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:[NSData dataWithContentsOfDispatchData:payload.dispatchData]];
+        id unarchivedObject = [unarchiver decodeObjectOfClasses:LKS_AllowedTopLevelClasses() forKey:NSKeyedArchiveRootObjectKey];
         if ([unarchivedObject isKindOfClass:[LookinConnectionAttachment class]]) {
             LookinConnectionAttachment *attachment = (LookinConnectionAttachment *)unarchivedObject;
             object = attachment.data;

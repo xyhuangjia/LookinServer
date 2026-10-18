@@ -12,6 +12,10 @@
 #include <net/if.h>
 #include <sys/utsname.h>
 
+#if TARGET_OS_IPHONE
+#import <UIKit/UIKit.h>
+#endif
+
 
 static NSInteger const ECOINET_ADDRSTRLEN = 16;
 static NSInteger const ECOINET6_ADDRSTRLEN = 46;

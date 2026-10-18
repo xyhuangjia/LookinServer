@@ -50,7 +50,9 @@ let package = Package(
             cxxSettings: [
                 .define("SHOULD_COMPILE_LOOKIN_SERVER", to: "1", .when(configuration: .debug)),
                 .define("SPM_LOOKIN_SERVER_ENABLED", to: "1", .when(configuration: .debug)),
-                .define("LOOKIN_SERVER_WIRELESS", to: "1", .when(platforms: [.iOS, .tvOS])),
+                // 与 LookinShared.podspec 的 Wireless 子规格保持一致：macOS（Lookin 客户端）也需要
+                // 链接 Channel 符号，平台差异由源码内部守卫处理
+                .define("LOOKIN_SERVER_WIRELESS", to: "1"),
             ]
         ),
         .target(

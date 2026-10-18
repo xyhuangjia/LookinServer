@@ -1,4 +1,5 @@
 {
+  "originHash" : "4909fd4fb6927ae35f024a3aaf73be3ea68bf5ca3232dda5d26c997472530160",
   "pins" : [
     {
       "identity" : "lookinserver",
@@ -6,9 +7,9 @@
       "location" : "https://github.com/QMUI/LookinServer",
       "state" : {
         "branch" : "develop",
-        "revision" : "58067cf9cd30662f7082681d8f5083524a4262b1"
+        "revision" : "ae396132ce6494477457cf450116dc760518d8ad"
       }
     }
   ],
-  "version" : 2
+  "version" : 3
 }

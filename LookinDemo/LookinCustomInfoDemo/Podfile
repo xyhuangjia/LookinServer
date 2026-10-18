@@ -1,5 +1,7 @@
 use_frameworks!
 
+platform :ios, '15.6'
+
 target 'LookinCustomInfoDemo' do
     pod 'LookinServer', :path=>'../../', :subspecs => ['Swift'], :configurations => ['Debug']
 end

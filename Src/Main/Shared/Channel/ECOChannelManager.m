@@ -11,7 +11,6 @@
 @interface ECOChannelManager()
 <ECOChannelConnectedDeviceProtocol>
 
-@property (nonatomic, strong) ECOUSBChannel *ptChannel;
 @property (nonatomic, strong) ECOSocketChannel *socketChannel;
 
 @end
@@ -23,14 +22,9 @@
     self = [super init];
     if (self) {
         _socketChannel = [[ECOSocketChannel alloc] initWithDelegate:self];
-        _ptChannel = [[ECOUSBChannel alloc] initWithDelegate:self];
-#if TARGET_OS_IPHONE
-        __weak typeof(self) weakSelf = self;
-        _ptChannel.attachBlock = ^(NSString *ipAddress) {
-            [weakSelf.socketChannel connectToIPAddress:ipAddress];
-        };
-#endif
-        
+        // ECOUSBChannel（Echo 遗留的「USB 插入自动建立无线通道」引导器）已移除：
+        // 无线连接与配对码只在无线调试场景发生；USB 调试走 LookinServer 自身的
+        // Peertalk 通道（47175-47179），插线不应触发任何无线/配对事件
     }
     return self;
 }

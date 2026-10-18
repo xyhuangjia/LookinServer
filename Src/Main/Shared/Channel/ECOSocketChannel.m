@@ -38,6 +38,8 @@ static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
 //Client端主动连接的监听socket
 @property (nonatomic, strong) GCDAsyncSocket *cSocket;
 @property (nonatomic, strong) NSMutableArray *clientSockets;
+//监听失败只提示一次，重试期间保持静默，避免每秒一条刷屏
+@property (nonatomic, assign) BOOL hasLoggedListenError;
 
 @end
 
@@ -98,10 +100,15 @@ static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
     NSError *error = nil;
     [self.cSocket acceptOnPort:LookinClientSockeListenPortNumber error:&error];
     if (error) {
-        NSLog(@"Socket Listen error:%@", error);
+        if (!self.hasLoggedListenError) {
+            self.hasLoggedListenError = YES;
+            NSLog(@"Socket Listen error:%@（端口 %d 可能被同机其它 App 占用，无线通道将不可用）", error, LookinClientSockeListenPortNumber);
+        }
         self.cSocket.delegate = nil;
         self.cSocket = nil;
+        return;
     }
+    self.hasLoggedListenError = NO;
 }
 - (void)startListening {
     [self p_lock];
@@ -115,12 +122,18 @@ static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
     NSError *error = nil;
     BOOL isAccept = [self.mSocket acceptOnPort:LookinSocketAcceptPortNumber error:&error];
     if (error) {
-        NSLog(@"Socket Listen error:%@", error);
+        // 常见于本机已运行另一个 Lookin 实例（固定端口 47181 是手机发现 Mac 的依据，不能随机分配）。
+        // 每秒重试一次以便端口释放后自动恢复，但失败日志只打一条，避免刷屏
+        if (!self.hasLoggedListenError) {
+            self.hasLoggedListenError = YES;
+            NSLog(@"Socket Listen error:%@（将静默重试；若持续失败，请检查是否已有另一个 Lookin 实例占用了端口 %d）", error, LookinSocketAcceptPortNumber);
+        }
         self.mSocket.delegate = nil;
         self.mSocket = nil;
         [self restartListening];
         return;
     }
+    self.hasLoggedListenError = NO;
     NSLog(@"Socket Listen:%@", isAccept ? @"Success" : @"Failure");
     //启动NetService
     [self.publisher startPublish];

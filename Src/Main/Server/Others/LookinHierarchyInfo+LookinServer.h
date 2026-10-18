@@ -11,7 +11,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface LookinHierarchyInfo (LookinServer)
 /// version 可能为 nil，此时说明 Client 版本号 < 1.0.4
-+ (instancetype)staticInfoWithLookinVersion:(NSString *)version;
+/// isWireless 表示本次请求实际经由的通道是否为无线，用于给内嵌的 appInfo 打连接标识
++ (instancetype)staticInfoWithLookinVersion:(NSString *)version isWireless:(BOOL)isWireless;
 
 + (instancetype)exportedInfo;
 @end

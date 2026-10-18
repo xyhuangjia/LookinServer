@@ -17,19 +17,22 @@
 #import "LKS_CustomAttrSetterManager.h"
 @implementation LookinHierarchyInfo (LookinServer)
 
-+ (instancetype)staticInfoWithLookinVersion:(NSString *)version {
++ (instancetype)staticInfoWithLookinVersion:(NSString *)version isWireless:(BOOL)isWireless {
     BOOL readCustomInfo = NO;
     // Client 1.0.4 开始支持 customInfo
     if (version && [version lookin_numbericOSVersion] >= 10004) {
         readCustomInfo = YES;
     }
-    
+
     [[LKS_CustomAttrSetterManager sharedInstance] removeAll];
-    
+
     LookinHierarchyInfo *info = [LookinHierarchyInfo new];
     info.serverVersion = LOOKIN_SERVER_VERSION;
     info.displayItems = [LKS_HierarchyDisplayItemsMaker itemsWithScreenshots:NO attrList:NO lowImageQuality:NO readCustomInfo:readCustomInfo saveCustomSetter:YES];
     info.appInfo = [LookinAppInfo currentInfoWithScreenshot:NO icon:YES localIdentifiers:nil];
+#if LOOKIN_SERVER_WIRELESS
+    [info.appInfo lookin_setWireless:isWireless];
+#endif
     info.collapsedClassList = [LKSConfigManager collapsedClassList];
     info.colorAlias = [LKSConfigManager colorAlias];
     return info;

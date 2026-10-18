@@ -58,6 +58,9 @@ typedef NS_ENUM(NSInteger, LookinAppInfoDevice) {
 #if LOOKIN_SERVER_WIRELESS
 /// 是否为无线连接
 @property(nonatomic, assign) BOOL isWireless;
+/// 按「本次请求实际到达的通道」标记无线身份，并同步增删 deviceDescription 的 “ᯤ ” 前缀。
+/// 不能用全局连接状态判断：设备同时以 USB 和 Wi-Fi 接入时，USB 通道的响应也会被错误标成无线
+- (void)lookin_setWireless:(BOOL)isWireless;
 #endif
 
 - (BOOL)isEqualToAppInfo:(LookinAppInfo *)info;

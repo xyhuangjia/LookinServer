@@ -105,7 +105,8 @@ static const uint16_t kLKS_HTTPPort = 47190;
 #pragma mark - /hierarchy
 
 - (LKS_HTTPResponse *)_handleGetHierarchy {
-    LookinHierarchyInfo *info = [LookinHierarchyInfo staticInfoWithLookinVersion:nil];
+    // HTTP 桥为 lookin-mcp 本地直连，不属于 USB / 无线通道
+    LookinHierarchyInfo *info = [LookinHierarchyInfo staticInfoWithLookinVersion:nil isWireless:NO];
     if (!info || info.displayItems.count == 0) {
         return [LKS_HTTPResponse errorWithMessage:@"Hierarchy is empty. Make sure the app is in the foreground." statusCode:503];
     }

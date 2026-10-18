@@ -98,6 +98,11 @@
         NSArray<NSNumber *> *localIdentifiers = params[@"local"];
         
         LookinAppInfo *appInfo = [LookinAppInfo currentInfoWithScreenshot:needImages icon:needImages localIdentifiers:localIdentifiers];
+#if LOOKIN_SERVER_WIRELESS
+        // 用本 handler 对应的通道（USB/模拟器 或 无线）打标，而非设备的全局连接状态，
+        // 否则 USB 和 Wi-Fi 同时在连时，两条通道返回的 appInfo 会被标成同一种连接
+        [appInfo lookin_setWireless:self.isWireless];
+#endif
         
         LookinConnectionResponseAttachment *responseAttachment = [LookinConnectionResponseAttachment new];
         responseAttachment.data = appInfo;
@@ -115,7 +120,7 @@
         }
         
         LookinConnectionResponseAttachment *responseAttachment = [LookinConnectionResponseAttachment new];
-        responseAttachment.data = [LookinHierarchyInfo staticInfoWithLookinVersion:clientVersion];
+        responseAttachment.data = [LookinHierarchyInfo staticInfoWithLookinVersion:clientVersion isWireless:self.isWireless];
         [[LKS_ConnectionManager sharedInstance] respond:responseAttachment requestType:requestType tag:tag isWireless:self.isWireless];
         
     } else if (requestType == LookinRequestTypeInbuiltAttrModification) {

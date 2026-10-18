@@ -205,14 +205,27 @@ static NSString * const CodingKey_DeviceType = @"8";
         info.appIcon = [self appIcon];
     }
 #if LOOKIN_SERVER_WIRELESS && TARGET_OS_IPHONE
-	info.isWireless = LKS_ConnectionManager.sharedInstance.isWirelessConnnect;
-	if (info.isWireless) {
-		info.deviceDescription = [NSString stringWithFormat:@"ᯤ %@", info.deviceDescription];
-	}
+	// 无线身份由请求处理方按本次请求的实际到达通道调用 lookin_setWireless: 标记，
+	// 不能在这里读全局连接状态：USB 与 Wi-Fi 同时在连时，USB 通道的响应会被错误标成无线
+	info.isWireless = NO;
 #endif
     
     return info;
 }
+
+#if LOOKIN_SERVER_WIRELESS
+- (void)lookin_setWireless:(BOOL)isWireless {
+	self.isWireless = isWireless;
+	NSString *prefix = @"ᯤ ";
+	if (isWireless) {
+		if (![self.deviceDescription hasPrefix:prefix]) {
+			self.deviceDescription = [prefix stringByAppendingString:self.deviceDescription];
+		}
+	} else if ([self.deviceDescription hasPrefix:prefix]) {
+		self.deviceDescription = [self.deviceDescription substringFromIndex:prefix.length];
+	}
+}
+#endif
 
 + (NSString *)appName {
     NSDictionary *info = [[NSBundle mainBundle] infoDictionary];

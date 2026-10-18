@@ -6,6 +6,8 @@
 //  Description
 //
 
+#if __has_include(<UIKit/UIKit.h>)
+
 #import "ECOChannelDeviceInfo.h"
 #include <ifaddrs.h>
 #include <arpa/inet.h>
@@ -209,3 +211,5 @@ static NSString *_macUUIDString = nil;
 }
 
 @end
+
+#endif /* __has_include(<UIKit/UIKit.h>) */

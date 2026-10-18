@@ -50,7 +50,7 @@ let package = Package(
             cxxSettings: [
                 .define("SHOULD_COMPILE_LOOKIN_SERVER", to: "1", .when(configuration: .debug)),
                 .define("SPM_LOOKIN_SERVER_ENABLED", to: "1", .when(configuration: .debug)),
-                .define("LOOKIN_SERVER_WIRELESS", to: "1"),
+                .define("LOOKIN_SERVER_WIRELESS", to: "1", .when(platforms: [.iOS, .tvOS])),
             ]
         ),
         .target(

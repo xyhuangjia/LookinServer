@@ -6,6 +6,8 @@
 //  Description 
 //
 
+#if __has_include(<UIKit/UIKit.h>)
+
 #import "ECOChannelManager.h"
 
 @interface ECOChannelManager()
@@ -114,3 +116,5 @@
 }
 
 @end
+
+#endif /* __has_include(<UIKit/UIKit.h>) */

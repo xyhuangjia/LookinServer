@@ -6,6 +6,8 @@
 //  Description 
 //
 
+#if __has_include(<UIKit/UIKit.h>)
+
 #import "ECONetServicePublisher.h"
 #import "LookinDefines.h"
 
@@ -48,3 +50,5 @@
 }
 
 @end
+
+#endif /* __has_include(<UIKit/UIKit.h>) */

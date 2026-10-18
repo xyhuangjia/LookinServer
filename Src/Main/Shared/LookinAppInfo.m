@@ -11,8 +11,8 @@
 
 
 #import "LookinAppInfo.h"
-#if TARGET_OS_IPHONE
 #import "LKS_MultiplatformAdapter.h"
+#if TARGET_OS_IPHONE
 #import "LKS_ConnectionManager.h"
 #endif
 

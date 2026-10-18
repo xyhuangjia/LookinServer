@@ -200,7 +200,7 @@
     NSMutableArray *array = [NSMutableArray arrayWithCapacity:2];
     if (self.lks_hostView) {
         [array addObject:[CALayer lks_getClassListOfObject:self.lks_hostView endingClass:LookinViewString]];
-        NSViewController* vc = [self.lks_hostView lks_findHostViewController];
+        LookinViewController *vc = [self.lks_hostView lks_findHostViewController];
         if (vc) {
             [array addObject:[CALayer lks_getClassListOfObject:vc endingClass:LookinViewControllerString]];
         }

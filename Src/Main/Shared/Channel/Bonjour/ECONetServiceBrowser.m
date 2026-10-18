@@ -6,6 +6,8 @@
 //  Description 
 //
 
+#if __has_include(<UIKit/UIKit.h>)
+
 #import "ECONetServiceBrowser.h"
 #import "LookinDefines.h"
 #if TARGET_OS_IPHONE
@@ -124,3 +126,5 @@ NSNetServiceBrowserDelegate>
 }
 
 @end
+
+#endif /* __has_include(<UIKit/UIKit.h>) */

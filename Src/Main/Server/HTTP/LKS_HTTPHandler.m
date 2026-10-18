@@ -12,6 +12,7 @@
 #import "LookinAttributeModification.h"
 #import "LKS_AttrGroupsMaker.h"
 #import "LKS_InbuiltAttrModificationHandler.h"
+#import "LookinHierarchyInfo+LookinServer.h"
 #import "LKS_ConnectionManager.h"
 #import "NSObject+LookinServer.h"
 #import "LookinAttrType.h"

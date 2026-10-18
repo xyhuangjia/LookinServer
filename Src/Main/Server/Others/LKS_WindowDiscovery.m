@@ -10,6 +10,8 @@
 
 #if defined(SHOULD_COMPILE_LOOKIN_SERVER) && TARGET_OS_IPHONE
 
+#import <UIKit/UIKit.h>
+
 @interface LKS_WindowDiscovery ()
 
 @property (nonatomic, strong) NSArray<LKS_WeakObjContainer<UIWindow *> *> *customWindows;

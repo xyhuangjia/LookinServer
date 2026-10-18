@@ -77,6 +77,37 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 
 @end
 
+#if LOOKIN_SERVER_WIRELESS && TARGET_OS_IPHONE
+/// iOS 13+ 场景化 App 中 UIApplication.keyWindow 恒为 nil，旧的取法会让授权弹窗永远无法弹出。
+/// 这里从前台活跃的 UIWindowScene 里找 keyWindow，并沿 presentedViewController 链走到最顶层 VC。
+static UIViewController *LKS_ForegroundTopViewController(void) {
+    UIViewController *topViewController = nil;
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (scene.activationState != UISceneActivationStateForegroundActive ||
+            ![scene isKindOfClass:UIWindowScene.class]) {
+            continue;
+        }
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (window.isKeyWindow && window.rootViewController) {
+                topViewController = window.rootViewController;
+                break;
+            }
+        }
+        if (topViewController) {
+            break;
+        }
+    }
+    if (!topViewController) {
+        // 无 SceneManifest 的旧式 App 仍走 keyWindow
+        topViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+    }
+    while (topViewController.presentedViewController) {
+        topViewController = topViewController.presentedViewController;
+    }
+    return topViewController;
+}
+#endif
+
 @implementation LKS_ConnectionManager
 
 + (instancetype)sharedInstance {
@@ -204,8 +235,8 @@ NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNot
 			[alertController addAction:allowAlwaysAction];
 			
 			dispatch_async(dispatch_get_main_queue(), ^{
-				UIViewController *rootVC = [UIApplication sharedApplication].keyWindow.rootViewController;
-				[rootVC presentViewController:alertController animated:YES completion:nil];
+				UIViewController *topVC = LKS_ForegroundTopViewController();
+				[topVC presentViewController:alertController animated:YES completion:nil];
 			});
 		};
 #endif

@@ -10,6 +10,34 @@
 #import "LookinDefines.h"
 #if TARGET_OS_IPHONE
 #import <UIKit/UIKit.h>
+
+/// iOS 13+ 场景化 App 中 UIApplication.keyWindow 恒为 nil，旧的取法会让提示弹窗永远无法弹出。
+/// 从前台活跃的 UIWindowScene 里找 keyWindow，并沿 presentedViewController 链走到最顶层 VC。
+static UIViewController *LKS_ForegroundTopViewController(void) {
+    UIViewController *topViewController = nil;
+    for (UIScene *scene in [UIApplication sharedApplication].connectedScenes) {
+        if (scene.activationState != UISceneActivationStateForegroundActive ||
+            ![scene isKindOfClass:UIWindowScene.class]) {
+            continue;
+        }
+        for (UIWindow *window in ((UIWindowScene *)scene).windows) {
+            if (window.isKeyWindow && window.rootViewController) {
+                topViewController = window.rootViewController;
+                break;
+            }
+        }
+        if (topViewController) {
+            break;
+        }
+    }
+    if (!topViewController) {
+        topViewController = [UIApplication sharedApplication].keyWindow.rootViewController;
+    }
+    while (topViewController.presentedViewController) {
+        topViewController = topViewController.presentedViewController;
+    }
+    return topViewController;
+}
 #endif
 
 @interface ECONetServiceBrowser()
@@ -79,17 +107,17 @@ NSNetServiceBrowserDelegate>
         if (errorCode == -72008) {
             //iOS14新增本地网络隐私权限，提示用户如何设置并忽略
             dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.f * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-                NSString *title = @"Echo 连接提示";
-                NSString *message = @"由于iOS14本地网络权限限制，请在Info.plist中设置NSLocalNetworkUsageDescription和NSBonjourServices，详细内容见：https://github.com/didi/echo";
+                NSString *title = @"Lookin 无线连接提示";
+                NSString *message = @"无法访问本地网络（Bonjour 浏览被系统拒绝）。请确认 App 的 Info.plist 已配置 NSLocalNetworkUsageDescription 与 NSBonjourServices（_Lookin._tcp），并在 设置 > 隐私与安全性 > 本地网络 中允许本 App 访问。";
                 UIAlertController *alertController = [UIAlertController alertControllerWithTitle:title message:message preferredStyle:UIAlertControllerStyleAlert];
                 UIAlertAction *confirmAction = [UIAlertAction actionWithTitle:@"好的" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
 
                 }];
                 [alertController addAction:confirmAction];
-                UIViewController *rootVC = [UIApplication sharedApplication].keyWindow.rootViewController;
-                [rootVC presentViewController:alertController animated:YES completion:nil];
+                UIViewController *topVC = LKS_ForegroundTopViewController();
+                [topVC presentViewController:alertController animated:YES completion:nil];
             });
-            NSLog(@">>Echo Warning：Bonjour服务错误，由于iOS14本地网络权限限制，请在Info.plist中设置NSLocalNetworkUsageDescription和NSBonjourServices，详细内容见：https://github.com/didi/echo");
+            NSLog(@">>Lookin Warning：Bonjour服务错误（-72008），本地网络权限被拒绝。请在Info.plist中设置NSLocalNetworkUsageDescription和NSBonjourServices（_Lookin._tcp），或在系统设置中允许本App访问本地网络。");
             return;
         }
     }

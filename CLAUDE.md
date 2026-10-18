@@ -60,6 +60,13 @@ The same trees are packaged two ways: CocoaPods (two podspecs, subspecs `Core`/`
 
 iOS 9+, tvOS 9+, visionOS. Mac Catalyst is treated as a simulator (uses simulator port range); the `isiOSAppOnMac` check in `LKS_ConnectionManager` needs `respondsToSelector:` guards due to an iOS 14 beta bug — preserve them.
 
+### Deprecated: HTTP REST bridge
+
+`Src/Main/Server/HTTP/` (`LKS_HTTPHandler`, `LKS_HTTPServer`) exposes a plain REST bridge on `127.0.0.1:47190` for the external `lookin-mcp-ios` / `lookin-mcp` npm package. It is **deprecated since 1.3.1**: the macOS Lookin.app now embeds a native MCP server (Streamable HTTP) and reuses the existing PeerTalk channel, so the bridge is no longer needed by Lookin.app users.
+
+- 1.3.1: keep the code, mark it deprecated (done in the headers) and document the migration.
+- 1.4.0: remove the four HTTP files. After removal, run `pod install` in the macOS client repo (`Lookin/`) so the local `LookinShared` file list is refreshed. This does not change `LOOKIN_SERVER_VERSION` (the wire protocol is unaffected).
+
 ## Conventions
 
 - README and many code comments are bilingual (Chinese/English); commit messages are often written in Chinese.

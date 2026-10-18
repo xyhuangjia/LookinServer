@@ -2,6 +2,10 @@
 
 #import <Foundation/Foundation.h>
 
+/// @deprecated since 1.3.1. Superseded by Lookin.app's built-in MCP server.
+/// Kept for existing `lookin-mcp-ios` users; scheduled for removal in 1.4.0.
+/// 已被 Lookin.app 内置 MCP server 取代，将在 1.4.0 移除。
+
 @class LKS_HTTPRequest, LKS_HTTPResponse;
 
 typedef void (^LKS_HTTPCompletionBlock)(LKS_HTTPResponse *response);

@@ -8,7 +8,7 @@
 #import "LKS_WindowDiscovery.h"
 #import "LKS_WeakObjContainer.h"
 
-#ifdef SHOULD_COMPILE_LOOKIN_SERVER
+#if defined(SHOULD_COMPILE_LOOKIN_SERVER) && TARGET_OS_IPHONE
 
 @interface LKS_WindowDiscovery ()
 
@@ -93,4 +93,4 @@
 
 @end
 
-#endif /* SHOULD_COMPILE_LOOKIN_SERVER */
+#endif /* SHOULD_COMPILE_LOOKIN_SERVER && TARGET_OS_IPHONE */

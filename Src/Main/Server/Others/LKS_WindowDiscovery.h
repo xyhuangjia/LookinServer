@@ -10,6 +10,7 @@
 NS_ASSUME_NONNULL_BEGIN
 
 @class UIWindow;
+@class UIView;
 @interface LKS_WindowDiscovery : NSObject
 
 /// combine different source of windows:

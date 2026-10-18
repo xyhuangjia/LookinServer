@@ -204,7 +204,7 @@ static NSString * const CodingKey_DeviceType = @"8";
     if (hasIcon) {
         info.appIcon = [self appIcon];
     }
-#if LOOKIN_SERVER_WIRELESS
+#if LOOKIN_SERVER_WIRELESS && TARGET_OS_IPHONE
 	info.isWireless = LKS_ConnectionManager.sharedInstance.isWirelessConnnect;
 	if (info.isWireless) {
 		info.deviceDescription = [NSString stringWithFormat:@"ᯤ %@", info.deviceDescription];

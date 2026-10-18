@@ -181,10 +181,9 @@ static UIViewController *LKS_ForegroundTopViewController(void) {
 #if TARGET_OS_IPHONE
 		self.wirelessChannel = ECOChannelManager.new;
 		__weak __typeof(self) weakSelf = self;
-		// 接收到数据回调
-		self.wirelessChannel.receivedBlock = ^(ECOChannelDeviceInfo *device, NSData *data, NSDictionary *extraInfo) {
-			NSLog(@"🚀 Lookin receivedBlock device:%@", device);
-			NSNumber *type = extraInfo[@"type"];
+			// 接收到数据回调（每个数据包都会进来，不要在这里 NSLog，会刷屏）
+			self.wirelessChannel.receivedBlock = ^(ECOChannelDeviceInfo *device, NSData *data, NSDictionary *extraInfo) {
+				NSNumber *type = extraInfo[@"type"];
 			NSNumber *tag = extraInfo[@"tag"];
 			id object = nil;
 			NSKeyedUnarchiver *unarchiver = [[NSKeyedUnarchiver alloc] initForReadingWithData:data];

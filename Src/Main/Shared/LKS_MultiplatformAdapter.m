@@ -96,9 +96,35 @@
 #endif
 
 + (LookinWindow *)keyWindow {
-#if TARGET_OS_VISION
-    return [self getFirstActiveWindowScene].keyWindow;
-#elif TARGET_OS_IPHONE
+#if TARGET_OS_IPHONE
+    // iOS 13+ 场景化 App 中 UIApplication.keyWindow 恒为 nil（visionOS / Mac Catalyst 同样受影响），
+    // 必须从活跃的 UIWindowScene 里找，否则截图、弹窗等基于 keyWindow 的功能全部拿到 nil。
+    // 查找顺序：前台活跃 scene 的 keyWindow → 全部窗口中 isKeyWindow 的（覆盖启动/回前台过渡态）
+    // → 旧式无 SceneManifest App 的 keyWindow 兜底。
+    for (UIScene *scene in [LookinApplication sharedApplication].connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) {
+            continue;
+        }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        if (windowScene.activationState != UISceneActivationStateForegroundActive) {
+            continue;
+        }
+        UIWindow *sceneKeyWindow = windowScene.keyWindow;
+        if (sceneKeyWindow) {
+            return sceneKeyWindow;
+        }
+    }
+    for (UIScene *scene in [LookinApplication sharedApplication].connectedScenes) {
+        if (![scene isKindOfClass:UIWindowScene.class]) {
+            continue;
+        }
+        UIWindowScene *windowScene = (UIWindowScene *)scene;
+        for (UIWindow *window in windowScene.windows) {
+            if (window.isKeyWindow) {
+                return window;
+            }
+        }
+    }
     return [LookinApplication sharedApplication].keyWindow;
 #elif TARGET_OS_OSX
     return [LookinApplication sharedApplication].windows.firstObject;

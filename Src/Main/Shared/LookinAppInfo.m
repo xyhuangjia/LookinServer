@@ -218,7 +218,10 @@ static NSString * const CodingKey_DeviceType = @"8";
 	self.isWireless = isWireless;
 	NSString *prefix = @"ᯤ ";
 	if (isWireless) {
-		if (![self.deviceDescription hasPrefix:prefix]) {
+		// deviceDescription 可能为 nil：currentInfoWithScreenshot: 命中 localIdentifiers 缓存时
+		// 只回填 identifier / shouldUseCache 就早退（客户端本来就会用自己缓存的旧 appInfo）。
+		// 此时直接拼前缀会触发 -[__NSCFConstantString stringByAppendingString:]: nil argument 崩溃
+		if (self.deviceDescription.length && ![self.deviceDescription hasPrefix:prefix]) {
 			self.deviceDescription = [prefix stringByAppendingString:self.deviceDescription];
 		}
 	} else if ([self.deviceDescription hasPrefix:prefix]) {

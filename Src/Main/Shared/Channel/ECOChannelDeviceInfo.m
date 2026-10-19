@@ -228,5 +228,11 @@ static NSString *ECOPairingIdentityString(void) {
     return NO;
 }
 
+// 必须与 isEqual: 对齐（uuid + appId），否则按指针 hash 求值时，
+// pairingCodes / authStateChangedBlocks 等以 @(device.hash) 为 key 的字典查找会随机 miss
+- (NSUInteger)hash {
+    return self.uuid.hash ^ self.appInfo.appId.hash;
+}
+
 @end
 

@@ -409,6 +409,20 @@ static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
         }
 #endif
         deviceInfo.isConnected = YES;
+        // 同一设备（uuid+appId）已有 socket 在连：手机端 Bonjour 重复 resolve 会重复建连。
+        // 静默关闭新到的重复连接且不抛 didConnected 事件，避免上层出现重复的设备条目
+        [self p_lock];
+        BOOL hasDuplicate = [self p_hasSocketForDevice:deviceInfo besides:sock];
+        if (hasDuplicate) {
+            [sock setDelegate:nil];
+            [self.sockets removeObject:sock];
+        }
+        [self p_unlock];
+        if (hasDuplicate) {
+            NSLog(@">> [ECOSocketChannel] duplicate connection for device uuid:%@ appId:%@, will keep the older socket", deviceInfo.uuid, deviceInfo.appInfo.appId);
+            [sock disconnect];
+            return;
+        }
         //连接到新设备
         if ([self.delegate respondsToSelector:@selector(channel:didConnectedToDevice:)]) {
             [self.delegate channel:self didConnectedToDevice:deviceInfo];
@@ -487,12 +501,19 @@ static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
     [self p_lock];
     [sock setDelegate:nil];
     if ([self.sockets containsObject:sock]) {
-        if ([self.delegate respondsToSelector:@selector(channel:didDisconnectWithDevice:)]) {
-            ECOChannelDeviceInfo *deviceInfo = sock.userData;
-            deviceInfo.isConnected = NO;
-            [self.delegate channel:self didDisconnectWithDevice:deviceInfo];
-        }
+        ECOChannelDeviceInfo *deviceInfo = sock.userData;
+        // 先移除再回调，保证回调里检查「该设备是否仍有其它 socket」时结果准确
         [self.sockets removeObject:sock];
+        if (deviceInfo) {
+            deviceInfo.isConnected = NO;
+            // 同设备仍有其它 socket 在连（曾出现重复连接，另一条断了）：抑制断开事件，
+            // 避免上层误删仍可用的设备条目；全部断开时才正常抛事件
+            if (![self p_hasSocketForDevice:deviceInfo besides:sock]) {
+                if ([self.delegate respondsToSelector:@selector(channel:didDisconnectWithDevice:)]) {
+                    [self.delegate channel:self didDisconnectWithDevice:deviceInfo];
+                }
+            }
+        }
     }
     if ([self.clientSockets containsObject:sock]) {
         [self.clientSockets removeObject:sock];
@@ -504,6 +525,21 @@ static NSString *const LookinPairedPeersKey = @"LookinPairedPeersKey";
     }
 }
 #pragma mark - helper
+/// 除 besides 外，是否还有 userData 与 device 相等（uuid+appId 相同，见 isEqual:）的已连 socket。
+/// 调用方需持有 _socketLock。besides 传 nil 表示不排除任何 socket
+- (BOOL)p_hasSocketForDevice:(ECOChannelDeviceInfo *)device besides:(GCDAsyncSocket *)besides {
+    for (GCDAsyncSocket *socket in self.sockets) {
+        if (socket == besides) {
+            continue;
+        }
+        ECOChannelDeviceInfo *deviceInfo = socket.userData;
+        if ([deviceInfo isEqual:device]) {
+            return YES;
+        }
+    }
+    return NO;
+}
+
 - (void)p_lock {
     [_socketLock lock];
 }

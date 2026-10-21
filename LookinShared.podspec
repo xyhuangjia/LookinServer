@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name         = "LookinShared"
-  spec.version      = "1.3.3"
+  spec.version      = "1.3.4"
   spec.summary      = "The shared files between client and server side of Lookin."
   spec.description  = "Embed this framework into your iOS project to enable Lookin mac app."
   spec.homepage     = "https://lookin.work"
@@ -10,7 +10,7 @@ Pod::Spec.new do |spec|
   spec.tvos.deployment_target  = "15.6"
   spec.macos.deployment_target = "14.0"
   spec.visionos.deployment_target = "1.0"
-  spec.source       = { :git => "https://github.com/QMUI/LookinServer.git", :tag => "1.3.3"}
+  spec.source       = { :git => "https://github.com/QMUI/LookinServer.git", :tag => "1.3.4"}
   #spec.framework  = "UIKit"
   spec.requires_arc = true
   spec.source_files = [

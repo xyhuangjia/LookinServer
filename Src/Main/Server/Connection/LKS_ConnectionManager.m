@@ -57,6 +57,19 @@ static NSSet<Class> *LKS_AllowedTopLevelClasses(void) {
 
 NSString *const LKS_ConnectionDidEndNotificationName = @"LKS_ConnectionDidEndNotificationName";
 
+/// 所有响应统一经此串行队列归档（含截图的 PNG 编码，可能耗时）后再发送：
+/// 一方面把这些 CPU 开销从请求处理线程（详情包处理时是主线程）挪走，
+/// 另一方面串行队列保证响应按入队顺序发出
+static dispatch_queue_t LKS_ResponseSendQueue(void) {
+    static dispatch_queue_t queue;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        queue = dispatch_queue_create("lookin.server.response-send", DISPATCH_QUEUE_SERIAL);
+        dispatch_set_target_queue(queue, dispatch_get_global_queue(QOS_CLASS_USER_INITIATED, 0));
+    });
+    return queue;
+}
+
 @interface LKS_ConnectionManager () <Lookin_PTChannelDelegate>
 
 @property(nonatomic, weak) Lookin_PTChannel *peerChannel_;
@@ -388,23 +401,30 @@ static UIViewController *LKS_ForegroundTopViewController(void) {
 }
 
 - (void)_sendData:(NSObject *)data frameOfType:(uint32_t)frameOfType tag:(uint32_t)tag isWireless:(BOOL)isWireless {
-	NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:data];
-    if (isWireless) {
+    // 在调用线程先取好强引用，避免进队列执行时对象已被置空或释放
+    Lookin_PTChannel *channel = isWireless ? nil : self.peerChannel_;
 #if LOOKIN_SERVER_WIRELESS
-        if (self.wirelessDevice.isConnected) {
-            [self.wirelessChannel sendPacket:archivedData extraInfo:@{@"tag": @(tag), @"type": @(frameOfType)} toDevice:self.wirelessDevice];
-        }
+    ECOChannelManager *wirelessChannel = isWireless ? self.wirelessChannel : nil;
+    ECOChannelDeviceInfo *wirelessDevice = isWireless ? self.wirelessDevice : nil;
 #endif
-    } else {
-        if (self.peerChannel_) {
+    
+    dispatch_async(LKS_ResponseSendQueue(), ^{
+        NSData *archivedData = [NSKeyedArchiver archivedDataWithRootObject:data];
+        if (isWireless) {
+#if LOOKIN_SERVER_WIRELESS
+            if (wirelessDevice.isConnected) {
+                [wirelessChannel sendPacket:archivedData extraInfo:@{@"tag": @(tag), @"type": @(frameOfType)} toDevice:wirelessDevice];
+            }
+#endif
+        } else if (channel) {
             dispatch_data_t payload = [archivedData createReferencingDispatchData];
             
-            [self.peerChannel_ sendFrameOfType:frameOfType tag:tag withPayload:payload callback:^(NSError *error) {
+            [channel sendFrameOfType:frameOfType tag:tag withPayload:payload callback:^(NSError *error) {
                 if (error) {
                 }
             }];
         }
-    }
+    });
 }
 
 #pragma mark - Lookin_PTChannelDelegate

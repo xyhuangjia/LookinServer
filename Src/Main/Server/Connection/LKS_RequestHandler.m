@@ -109,6 +109,15 @@
         [[LKS_ConnectionManager sharedInstance] respond:responseAttachment requestType:requestType tag:tag isWireless:self.isWireless];
         
     } else if (requestType == LookinRequestTypeHierarchy) {
+        // 新快照意味着客户端要放弃旧快照：取消所有在途的详情任务，避免旧响应晚到污染新状态，也省掉无谓的主线程渲染。
+        // activeDetailHandlers 只在主线程读写（详情任务在主线程结束时从中移除自己），请求回调线程不直接触碰
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.activeDetailHandlers enumerateObjectsUsingBlock:^(LKS_HierarchyDetailsHandler * _Nonnull handler, BOOL * _Nonnull stop) {
+                [handler cancel];
+            }];
+            [self.activeDetailHandlers removeAllObjects];
+        });
+        
         // 从 LookinClient 1.0.4 开始有这个参数，之前是 nil
         NSString *clientVersion = nil;
         if ([object isKindOfClass:[NSDictionary class]]) {
@@ -254,10 +263,13 @@
         }
         
     } else if (requestType == LookinPush_CanceHierarchyDetails) {
-        [self.activeDetailHandlers enumerateObjectsUsingBlock:^(LKS_HierarchyDetailsHandler * _Nonnull handler, BOOL * _Nonnull stop) {
-            [handler cancel];
-        }];
-        [self.activeDetailHandlers removeAllObjects];
+        // 与上面 Hierarchy 分支同理：activeDetailHandlers 的读写统一收敛到主线程
+        dispatch_async(dispatch_get_main_queue(), ^{
+            [self.activeDetailHandlers enumerateObjectsUsingBlock:^(LKS_HierarchyDetailsHandler * _Nonnull handler, BOOL * _Nonnull stop) {
+                [handler cancel];
+            }];
+            [self.activeDetailHandlers removeAllObjects];
+        });
         
     } else if (requestType == LookinRequestTypeFetchImageViewImage) {
         if (![object isKindOfClass:[NSNumber class]]) {
